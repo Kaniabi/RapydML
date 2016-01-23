@@ -1,5 +1,5 @@
 import os
-from util import IndentParser
+from .util import IndentParser
 
 
 # close tag flag
@@ -21,16 +21,16 @@ class LineParser:
 	def __init__(self):
 		self.attr_stack = []
 		self.tree = IndentParser()
-	
+
 	def parse_line(self, line):
 		# takes a line in '' format and returns key, value pair, where the value is a tuple of flags and an
 		# array of allowed attributes
-		
+
 		# separate tag and attributes into a list (flattening out any intermediate lists)
 		# this will create the following list:
 		# ['<tag>', attr1, attr2, attr3]
 		key_val = flatten_list([item.strip(',').split(',') for item in line.strip().split()])
-		
+
 		# set correct flag and tag
 		element = key_val.pop(0)
 		modifier = element[-1]
@@ -43,10 +43,10 @@ class LineParser:
 		else:
 			flag = NORMAL
 			element = element[1:-1]
-		
+
 		# push and pop from the stack as needed
 		self.tree.handle_indent(line, [self.attr_stack.pop], [self.attr_stack.append, key_val])
-		
+
 		if element == '.':	# meta-node, innacessible to the pyml file
 			return None, None
 		else:
@@ -54,7 +54,7 @@ class LineParser:
 			if '*' in attrs:
 				attrs = None
 			return element, (flag, attrs)
-		
+
 
 def load(markup, location=None):
 	# take markup and open the relevant file, reading data from it
@@ -62,26 +62,26 @@ def load(markup, location=None):
 	# each entry follows this format:
 	#	key	->	([flags], [attrlist])
 	#		attrlist is an empty list if no attributes are supported, attrlist is None if any attributes are supported
-	
+
 	# convert markup to filename
 	if location is None:
 		location = os.getcwd()
 	filename = os.path.join(location, 'markup', markup)
-	
+
 	# start scanning the rules
 	buffer = ''
 	html_tags = {}
 	parser = LineParser()
 	with open(filename, 'r') as lang_rules:
 		for line in lang_rules:
-			
+
 			# remove comments:
 			line = line.split('#')[0].rstrip()
-			
+
 			# ignore blank lines
 			if not line.strip():
 				continue
-			
+
 			# handle multi-lines
 			if buffer:
 				line = ' '+line.lstrip()
@@ -96,4 +96,3 @@ def load(markup, location=None):
 						html_tags[key] = val
 				buffer = ''
 	return html_tags
-			

@@ -10,7 +10,7 @@ parser = argparse.ArgumentParser(description='Pre-Compiler for XML/HTML-like mar
 Simplifies writing new web pages and XML by making format more human-readable as well \
 as reducing redundant syntax.')
 
-parser.add_argument('input', metavar='INPUT', type=file, 
+parser.add_argument('input', metavar='INPUT', type=open,
 					help='The RapydML file to compile')
 parser.add_argument('--no-acknowledgement', dest='no_ack', action='store_true', default=False,
 					help="Avoid the string stating that page was generated using RapydML")

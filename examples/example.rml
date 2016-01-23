@@ -1,0 +1,11 @@
+html:
+  head:
+    title:
+      "Welcome to my Web Page"
+  body:
+    div(id="title"):
+      img(src="banner.png", alt="My Banner")
+    div(id="content"):
+      "I haven't yet put anything on this page"
+    div(id="copyright"):
+        "Copyright 2012 by Me"

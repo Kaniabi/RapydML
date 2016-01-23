@@ -1,7 +1,7 @@
 import sys, re, os
 import string
-from util import IndentParser, ParserError, ShellError
-from markuploader import NORMAL, SINGLE
+from .util import IndentParser, ParserError, ShellError
+from .markuploader import NORMAL, SINGLE
 from subprocess import Popen, PIPE
 import pipes
 
@@ -57,7 +57,7 @@ def expand_arrays(tag):
 			final = int(array[2])-1
 		tag = tag.replace(array[0], str(range(int(array[1]),final,increment)))
 	return tag
-	
+
 attr_map = {'.' : 'class'}
 def convert_attr(attr):
 	# converts attribute CSS-like shorthands to proper HTML
@@ -78,7 +78,7 @@ def get_attr(tag):
 		return []
 	else:
 		attr_list = attr_string.split(',')
-		
+
 		buffer = ''
 		in_string = None
 		in_list = False
@@ -90,7 +90,7 @@ def get_attr(tag):
 				buffer += ',' + orig_attr
 			else:
 				buffer = attr
-			
+
 			if in_string:
 				length = len(attr)
 				# check that last character is a quote
@@ -106,15 +106,15 @@ def get_attr(tag):
 				elif attr.count("'") % 2:
 					# single-quoted string started
 					in_string = "'"
-			
+
 				if attr[0] == '[':
 					in_list = True
 				if attr[-1] == ']':
 					in_list = False
-			
+
 			if not in_string and not in_list:
 				final_attr_list.append(buffer.strip())
-		
+
 		for i in range(len(final_attr_list)):
 			final_attr_list[i] = convert_attr(final_attr_list[i])
 			if final_attr_list[i][0] in ('"', "'") \
@@ -123,7 +123,7 @@ def get_attr(tag):
 				# require quotes, i.e. 'z-index'
 				final_attr_list[i] = final_attr_list[i].replace(final_attr_list[i][0], '', 2)
 		return final_attr_list
-	
+
 def parse_definition(tag):
 	# parses DOM element or function definition
 	tag = tag.strip()
@@ -134,17 +134,17 @@ def parse_definition(tag):
 		element = tag.replace(':', '')
 		attributes = []
 	return element, attributes
-		
+
 def replace_variables(code, var_hash, ignore_list=[]):
 	#plugs the variables into the line
 	vars = re.findall('(?<!\\\\)\$[A-Za-z_][A-Za-z0-9_]*', code)
-	
+
 	for var in ignore_list:
 		try:
 			vars.remove(var)
 		except ValueError:
 			pass # variable doesn't appear on this line
-	
+
 	for var in vars:
 		try:
 			# the first version will not replace 2nd occurence in strings like '$a$a'
@@ -152,11 +152,11 @@ def replace_variables(code, var_hash, ignore_list=[]):
 			code = re.sub('(?<!\\\\)\%s(?![A-Za-z0-9_])' % var, var_hash[var], code)
 		except KeyError:
 			raise ParserError("Variable '%s' used prior to definition" % var)
-	
+
 	if code.find('python.') != -1:
 		# use of python method
-		code = eval_python(code)		
-	
+		code = eval_python(code)
+
 	return code
 
 def expand_assignment(tag):
@@ -178,7 +178,7 @@ def do_arithmetic(operation):
 	try:
 		result = eval(operation)
 		return repr(result)
-	except SyntaxError, NameError:
+	except (SyntaxError, NameError):
 		raise ParserError("Command '%s' is not a valid mathematical operation" % operation.strip())
 
 def parse_array_part(array_part):
@@ -210,7 +210,7 @@ def parse_array_part(array_part):
 			buffer = ''
 		else:
 			buffer = array_part[index] + buffer
-		
+
 		if brackets == 0:
 			if buffer:
 				array.append(buffer.strip())
@@ -259,10 +259,10 @@ class ColorConverter:
 				pair = line.split(':')
 				self.color_map[pair[0]] = pair[1].rstrip()
 		os.chdir(orig_dir)
-	
+
 	def is_color(self, color_string):
 		return color_string in self.color_map.keys()
-	
+
 	def to_num(self, color):
 		# first we standardize colors to 6-digit hex format
 		color = color.lower()
@@ -272,10 +272,10 @@ class ColorConverter:
 			color = '%s%s%s%s%s%s' % (color[0], color[0], color[1], color[1], color[2], color[2])
 		elif len(color) != 6:
 			raise ParserError("Color '%s' is not a valid HTML color" % color)
-		
+
 		# now we return base 10 representation of the number
 		return int(color, 16)
-	
+
 	def to_color(self, num):
 		return hex(num)[2:].zfill(6)
 
@@ -283,7 +283,7 @@ class Method:
 	"""
 	Helper class for generating html-creating methods
 	"""
-	
+
 	def __init__(self, attributes, copy_heap, color_parser, name):
 		# create a new method that can be invoked later
 		# attributes: set of parameters this method will take in (this will be defined at function invocation)
@@ -295,7 +295,7 @@ class Method:
 		self.copy_heap = copy_heap
 		self.name = name
 		self.local_vars = []
-	
+
 	def add_line(self, line, verbatim=None, verbatim_vars=[]):
 		# this is where we handle replacing predefined variables
 		if verbatim is None:
@@ -307,11 +307,11 @@ class Method:
 		else:
 			line_type = VERBATIM
 		self.lines.append((line_type, line, verbatim_vars))
-	
+
 	def eval_chunk(self, part):
 		if re.search('[-+*/](?=(?:(?:[^"]*"){2})*[^"]*$)', part) and \
 		re.search("[-+*/](?=(?:(?:[^']*'){2})*[^']*$)", part):
-			
+
 			# check for potential colors:
 			# check for "blue" etc
 			# check for #fff etc
@@ -327,7 +327,7 @@ class Method:
 				if len(color) == 4 or len(color) == 7:
 					is_color_computation = True
 					part = re.sub('%s' % color, str(self.color.to_num(color[1:])), part)
-			
+
 			# remove stuff before equal sign, by this time the variable shouldn't be quoted
 			var_val = re.findall('^([^\'"].*?)=(.*)$', part)
 			if var_val:
@@ -335,16 +335,16 @@ class Method:
 				part = var_val[0] + '=' + do_arithmetic(var_val[1])
 			else:
 				part = do_arithmetic(part)
-			
+
 			if is_color_computation:
 				part = max(min(int(part), 0xffffff), 0x000000)
 				part = '#%s' % self.color.to_color(part)
 		return part
-	
+
 	def eval_line(self, line):
 		# returns evaluated version of the line
 		line = replace_variables(line, self.heap)
-		
+
 		#TEMP: this tester is naive, it assumes the strings will not contain ' or " characters inside of them
 		#BUG: we need to resolve things like div(#tag-id,#f00+#001)
 		if re.search('^[A-Za-z_][A-Za-z0-9_]*[ ]*\(.*\)', line.strip()):
@@ -356,7 +356,7 @@ class Method:
 		else:
 			line = self.eval_chunk(line)
 		return line
-	
+
 	def run_method(self, args, heap):
 		if self.copy_heap:
 			self.heap = heap.copy()
@@ -374,15 +374,15 @@ class Method:
 		for line in self.lines:
 			if line[0] == VERBATIM:
 				verbatim_line = line[1]
-				
+
 				# replace variables we specified
 				for variable in line[2]:
 					verbatim_line = re.sub(r'\%s(?![A-Za-z0-9_])' % variable, self.heap[variable], verbatim_line)
-				
+
 				yield verbatim_line		# don't run any logic on verbatim lines
 			else:
 				line = line[1]
-				
+
 				# this is where we handle replacing method arguments
 				assignments = line.count(':=')
 				if assignments == 1:
@@ -399,23 +399,23 @@ class TemplateEngine:
 	Helper class for generating HTML templates used by various templating engines such as Django,
 	web2py, or Rails
 	"""
-	
+
 	def __init__(self, tag_format):
 		# tag_format must include brackets and have %s for location of internal logic
 		self.tag_format = tag_format + '\n'
 		self.methods = {}
 		self.method_stack = []
-	
+
 	def handle_indent(self, indent, method_name):
 		# push to or pop from the stack, depending on indent
-		
+
 		# first method call
 		if self.method_stack:
 			indent_diff = indent-self.method_stack[-1][1]
 		else:
 			self.method_stack.append((method_name, indent))
 			return
-			
+
 		if self.is_submethod(method_name, indent): #indent_diff == 0 and method_name in self.methods[self.method_stack[-1][0]][3]:
 			# this is a submethod of current method
 			#self.method_stack.append((self.method_stack[-1][0], indent))
@@ -427,33 +427,33 @@ class TemplateEngine:
 			self.method_stack.append((method_name, indent))
 		elif indent_diff > 1:
 			raise ParserError('Incorrect indentation')
-	
+
 	def add_method(self, name, start_format, end_format=None):
 		# add a method we can call later
 		num_vars = start_format.count('%s')
 		submethods = []
 		self.methods[name] = (start_format, num_vars, end_format, submethods)
-	
+
 	def enhance_method(self, original_method, sub_method):
 		# allows submethod to be assosciated with existing method, preventing the end_method from getting triggered
 		self.methods[original_method][3].append(sub_method)
-	
+
 	def is_submethod(self, method_name, indent):
 		# returns true if method_name is a submethod of previously invoked method
 		return self.method_stack and method_name in self.methods[self.method_stack[-1][0]][3] and indent == self.method_stack[-1][1]
-	
+
 	def call_method(self, method, vars, indent):
 		# this returns an actual template tag to use for this method call
 		if len(vars) != self.methods[method][1]:
 			raise ParserError("TemplateEngine method %s takes %d variables, %d given" % (method, self.methods[method][1], len(vars)))
-		
+
 		self.handle_indent(indent, method)
 		vars = tuple(vars)
 		contents = self.methods[method][0] % vars
 		return self.tag_format % contents
-	
+
 	def end_method(self, method, close=True):
-		# return the end method for 
+		# return the end method for
 		if close and self.method_stack:
 			self.method_stack.pop()
 		if self.methods[method][2] is None:
@@ -475,7 +475,7 @@ class Parser:
 		'verbatim_line',
 		'code_block'
 	]
-	
+
 	def __init__(self, valid_tags):
 		self.valid_tags = valid_tags
 		self.tree = IndentParser()
@@ -483,36 +483,36 @@ class Parser:
 		self.output = ''
 		self.last_opened_element = None
 		self.var_map = {}
-		
+
 		self.creating_method = None
 		self.method_map = {}
 		self.loop_stack = []
 		self.loop_index = 0
-		
+
 		self.template_engines = {}
 		self.color = ColorConverter()
 		self.imported_files = []
-		
+
 		self.verbatim = {}
 		self.current_verbatim = None
 		self.verbatim_indent = 0
 		self.verbatim_buffer = ''
 		self.verbatim_vars = ([], [])
 		self.need_to_remove_method_vars = False
-	
+
 	def get_debug_state(self):
 		# method used for debugging
-		print "vvvvvvvvvvvvvvvvvvvvvvvvvvvvvv"
-		print "var_map", self.var_map
-		print "method_map", self.method_map.keys()
-		print "element_stack", self.element_stack
-		print "last_opened_element", self.last_opened_element
-		print "creating_method", self.creating_method
-		print "current_verbatim", self.current_verbatim
-		print "tree.indent", self.tree.indent
-		print "tree.no_stack", self.tree.no_stack
-		print "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"
-	
+		print("vvvvvvvvvvvvvvvvvvvvvvvvvvvvvv")
+		print("var_map", self.var_map)
+		print("method_map", self.method_map.keys())
+		print("element_stack", self.element_stack)
+		print("last_opened_element", self.last_opened_element)
+		print("creating_method", self.creating_method)
+		print("current_verbatim", self.current_verbatim)
+		print("tree.indent", self.tree.indent)
+		print("tree.no_stack", self.tree.no_stack)
+		print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+
 	def write(self, line, overlap = 0):
 		# helper method for writing to file, all writes should be done through it to ensure a single point
 		# of entry
@@ -521,7 +521,7 @@ class Parser:
 			self.output = self.output[:overlap] + line
 		else:
 			self.output += line
-	
+
 	def resolve_indexes(self, line):
 		# replace all indexes with corresponding values
 		while line.count(']['):
@@ -537,17 +537,17 @@ class Parser:
 			except IndexError:
 				# this occurs if we try some improperly terminated line like array[ or ][
 				raise ParserError("Syntax error while trying to parse index")
-		
+
 		return line
-	
+
 	def close_last_element(self):
 		# closes last html tag
 		tag = self.element_stack.pop()
-			
+
 		if tag is None:
 			return # this is not an element that requires closing
-		
-		# in order to use short-hand <tag /> we need to make sure that tag is not a special tag, 
+
+		# in order to use short-hand <tag /> we need to make sure that tag is not a special tag,
 		# and that the name matches as well as indent
 		if self.last_opened_element is None:
 			tag_type = -1
@@ -559,50 +559,50 @@ class Parser:
 					tag_type = self.valid_tags['*'][0]
 				except KeyError:
 					# WE SHOULD NOT GET IN HERE UNLESS SOMETHING IS WRONG
-					print "This logic should not trigger, please inform RapydML developers, provide the contents of your .pyml file as well."
+					print("This logic should not trigger, please inform RapydML developers, provide the contents of your .pyml file as well.")
 					raise ParserError("'%s' is not a valid markup tag or method name." % self.last_opened_element)
-		
+
 		if tag_type == NORMAL \
 		and re.search('^%s</%s>' % (self.tree.indent_to(self.tree.indent), self.last_opened_element), tag):
 			self.write(' />\n', -2)
 		elif tag_type != SINGLE or self.last_opened_element is None:
 			self.write(tag)
-				
-	
+
+
 	def set_variable(self, tag):
 		# sets the variable(s) in the system
 		vars = tag.split(':=')
 		if len(vars) == 1:
 			raise ParserError("You're trying to declare variable %s without assignment" % vars[0].strip())
-			
+
 		text = vars[-1].lstrip()
 		for var in vars[:-1]:
 			if var[0] == '$':
 				self.var_map[var.rstrip()] = self.get_variables(text)
 			else:
 				raise ParserError("Illegal assignment to a constant '%s'" % var.rstrip())
-	
+
 	def get_variables(self, tag, ignore_list=[]):
 		# applies variables from the system to current line
 		tag = replace_variables(tag, self.var_map, ignore_list)
 		return self.resolve_indexes(tag) # this converts notation [item1, item2, item3, ...][1] to item2
-	
+
 	def create_method(self, line):
 		indent = self.tree.find_indent(line) #this should always be zero
 		if line[:4] == 'def ': # this prevents us from overlooking consecutively declared methods
 			self.tree.indent = indent
 			element, attributes = parse_definition(line[4:])
-			
+
 			if element[0] not in string.letters + '_' or not (element.replace('_','').isalnum()):
 				raise ParserError("Method name must be alphanumeric with underscores and start with a letter or underscore")
-			
+
 			if element in self.valid_tags.keys():
 				raise ParserError("Can't create method named '%s', it's a reserved markup element name" % element)
-			
+
 			self.creating_method = element
 			# methods access shadowed variables to prevent overwriting globals
 			self.method_map[element] = Method(attributes, True, self.color, element)
-				
+
 		else:	# regular line inside a method
 			if indent == 0:
 				self.creating_method = None
@@ -615,13 +615,13 @@ class Parser:
 					if self.need_to_remove_method_vars:
 						self.need_to_remove_method_vars = False
 						line = '%s%s(%s)' % (self.tree.indent_to(indent), self.current_verbatim, ', '.join(self.verbatim_vars[GLOBAL_VARS]))
-				
+
 					# add normal line to method sequence
-					self.method_map[self.creating_method].add_line(line[len(self.tree.indent_marker):], 
+					self.method_map[self.creating_method].add_line(line[len(self.tree.indent_marker):],
 																self.current_verbatim,
 																self.verbatim_vars[METHOD_VARS])
 		return False
-	
+
 	def unroll_loop(self):
 		loop_token = self.loop_stack.pop()
 		loop_name = loop_token[0]
@@ -634,7 +634,7 @@ class Parser:
 				self.method_map[self.creating_method].add_line(loop_call)
 			else:
 				self.handle_line(loop_call)
-	
+
 	def handle_indent(self, indent, method_name, no_end=False):
 		if not self.creating_method:
 			if no_end: 	# happens during template engine one-liners
@@ -646,7 +646,7 @@ class Parser:
 			self.tree.handle_indent(self.tree.indent_to(indent) + '|', \
 				[self.close_last_element], \
 				ending_logic)
-	
+
 	def create_loop(self, line):
 		# we can just piggy-back on create_method, since a loop is essentially a repeated function
 		# the only tricky part is that loops can be nested
@@ -657,12 +657,12 @@ class Parser:
 			var = tag.split()[1] #[for,$var,in,...]
 			if var in self.var_map.keys():
 				raise ParserError("Can't reuse previously defined variable %s as loop iterator" % var)
-			
+
 			#array = self.get_variables(tag.split('[')[1].split(']')[0]).split(',')
 			#iterator = re.findall('^for[ ]+(\$[a-zA-Z_][a-zA-Z0-9_]*)[ ]+in', tag)[0]
 			#array = self.get_variables(tag, [var]).split('[', 1)[1].rsplit(']', 1)[0].split(',')
 			array = get_attr('(%s)' % self.get_variables(tag, [var]).split('[', 1)[1].rsplit(']', 1)[0])
-			
+
 			for i in range(len(array)):
 				array[i] = array[i].strip()
 			loop_name = 'rapydml_loop_def_%s' % self.loop_index
@@ -689,12 +689,12 @@ class Parser:
 			raise ParserError("Command '%s' has multiple assignment operators, invalid syntax" % tag)
 		self.var_map[result] = do_arithmetic(self.get_variables(pair[1].strip()))
 		return result
-	
+
 	def import_module(self, line):
 		tokens = line.split()
 		if len(tokens) != 2 or tokens[0] != 'import':
 			raise ParserError("Invalid import statement: %s" % line.strip())
-		
+
 		if tokens[1] not in self.imported_files:
 			try:
 				self.imported_files.append(tokens[1])
@@ -711,7 +711,7 @@ class Parser:
 					raise ParserError("Can't import '%s', module doesn't exist" % tokens[1])
 				finally:
 					os.chdir(cur_dir)
-	
+
 	def create_template_engine(self, line):
 		# creates a new set of rules for a templating engine, such as Django, Web2py, or Rails
 		pair = line.split('=')
@@ -721,7 +721,7 @@ class Parser:
 			raise ParserError("TemplateEngine must have alphanumeric name that starts with a letter")
 		template = pair[1][pair[1].find('(')+1:pair[1].rfind(')')-1].strip().strip("'").strip('"')
 		self.template_engines[pair[0].rstrip()] = TemplateEngine(template)
-	
+
 	def parse_template_engine_definition(self, line):
 		compressed = line.replace(' ','')
 		if compressed.find('create(') != -1:
@@ -748,7 +748,7 @@ class Parser:
 				self.template_engines[engine].add_method(template, attr[0][1:-1])
 			except KeyError:
 				raise ParserError("Attempting to add a method to a TemplateEngine prior to declaration")
-		
+
 		# helper method for checking if the line involves variable assignment and/or reassignment
 		if line.find(':=') != -1:
 			# variable declaration
@@ -758,7 +758,7 @@ class Parser:
 			# variable increment
 			res = self.expand_assignment_ops(line)
 			line = self.var_map[res]
-	
+
 	def parse_template_engine_call(self, line, indent):
 		compressed = line.replace(' ','')
 		try:
@@ -818,30 +818,30 @@ class Parser:
 			# variable increment
 			res = self.expand_assignment_ops(line)
 			line = self.var_map[res]
-	
+
 	def handle_verbatim_declaration(self, tag):
 		assignment_pair = tag.split('=', 1)
 		newtag = assignment_pair[0].strip()
 		element, attributes = parse_definition(assignment_pair[1])
 		length = len(attributes)
-		
+
 		# code_block follows same format as verbatim, but always takes additional argument
 		if element == 'code_block':
 			length -= 1
 			sys_command = attributes.pop()[1:-1]
-		
+
 		if length == 0:
 			# no args were passed, this version has no outer tags wrapping the text
 			starttag = endtag = ''
 		elif length == 1:
 			# received 1 argument, it's a tag to use as a template
-			
+
 			# TODO: eventually we want this to also check declared methods, if available, first
 			#if attributes[0] in self.template_engines.keys():
 			#	endtag = self.template_engines[attributes[0]].tag_format %
 			#else:
 			#	endtag = '</%s>\n' % attributes[0]
-			
+
 			tagname, tagattr = parse_definition(attributes[0])
 			starttag, endtag = create_tag(tagname, tagattr)
 		elif length == 2:
@@ -853,7 +853,7 @@ class Parser:
 				raise ParserError("Code Block definition takes 1, 2, or 3 arguments, %s arguments were given" % length)
 			else:
 				raise ParserError("Verbatim definition takes 0, 1, or 2 arguments, %s arguments were given" % length)
-		
+
 		# append to verbatim format in (start_tag, end_tag, type) format
 		if element == 'verbatim_line':
 			self.verbatim[newtag] = (starttag, endtag, SINGLE_LINE)
@@ -861,12 +861,12 @@ class Parser:
 			self.verbatim[newtag] = (starttag, endtag, MULTI_LINE)
 		else:
 			self.verbatim[newtag] = (starttag, endtag, CODE_BLOCK, sys_command)
-	
+
 	def handle_verbatim_call(self, line):
 		indent = self.tree.find_indent(line)
 		if self.current_verbatim is None:
 			# this is the first line of verbatim logic
-			
+
 			# set verbatim, get replaceable variables and check that they exist
 			self.current_verbatim, verbatim_vars = parse_definition(line.strip())
 			self.verbatim_vars = ([], [])
@@ -882,7 +882,7 @@ class Parser:
 						self.need_to_remove_method_vars = True
 						continue
 					raise ParserError("Variable '%s' used prior to declaration." % variable)
-			
+
 			self.verbatim_indent = self.tree.find_indent(line)
 			if not self.creating_method:
 				self.handle_indent(indent, None)
@@ -895,11 +895,11 @@ class Parser:
 				# still inside verbatim block
 				if not self.creating_method:
 					line = line[self.verbatim_indent+1:]
-				
+
 					# plug in the variables, if they appear on this line
 					for variable in self.verbatim_vars[GLOBAL_VARS]:
 						line = re.sub(r'\%s(?![A-Za-z0-9_])' % variable, self.var_map[variable], line)
-					
+
 					self.verbatim_buffer += line
 			else:
 				# end of verbatim logic
@@ -929,19 +929,19 @@ class Parser:
 				self.handle_line(line)
 				return True
 		return False
-	
+
 	def handle_line(self, line):
 		indent = self.tree.find_indent(line)
 		if DEBUG:
-			print self.element_stack, '|%s|' % self.creating_method, indent, repr(line)
+			print(self.element_stack, '|%s|' % self.creating_method, indent, repr(line))
 		whitespace = self.tree.indent_to(indent)
-		
+
 		#parse the tag
 		tag = line.strip()
-		
+
 		#if tag[0] == '$' and tag.find(':=') == -1:
 		#	tag = self.get_variables(tag)
-		
+
 		if self.current_verbatim is not None or \
 		tag.split('(')[0].strip(':') in self.verbatim.keys():
 			# verbatim call
@@ -954,7 +954,7 @@ class Parser:
 			else:
 				# note: even comments inside verbatim block get treated verbatim
 				last_line_processed = self.handle_verbatim_call(line)
-			
+
 			# if we're inside method creation, we want to keep going, so this line gets added to
 			# the method
 			if not self.creating_method or last_line_processed:
@@ -962,10 +962,10 @@ class Parser:
 		elif not tag or tag[0] == '#':
 			# strip comments and blank lines
 			return
-		
+
 		line = expand_arrays(line)
 		tag = line.strip()
-		
+
 		# first check is a quick pre-qualifier to avoid expensive regex, second one avoids
 		# false positives like: this_is_not_verbatim_call()
 		if (tag.find('verbatim') != -1 or tag.find('code_block') != -1) \
@@ -1003,7 +1003,7 @@ class Parser:
 				# use of python method
 				line = eval_python(line)
 				tag = line.strip()
-			
+
 			# continue parsing, there could be other instances of '.'
 			if tag.find('.append(') != -1 or tag.find('create(') != -1:
 				# template engine declaration
@@ -1024,15 +1024,15 @@ class Parser:
 								and item.split('.')[0] in self.template_engines:
 							# template method declaration or call
 							tag = tag.replace(item, self.parse_template_engine_call(item, None).strip('\n'))
-				
+
 #				if substitutions:
 #					self.write(line)
 #					return
 		elif line == EOF_MARKER:
 			return
-		
+
 		tag = self.get_variables(tag)
-		
+
 		if tag[0] in ('"', "'"):
 			# handle quoted strings as plain-text
 			starttag = tag[1:-1] + '\n'
@@ -1058,25 +1058,25 @@ class Parser:
 						hash_key = '*'
 					except KeyError:
 						raise ParserError("'%s' is not a valid markup tag or method name." % element)
-				
+
 				if self.valid_tags[hash_key][1] is not None:
 					for attr in attributes:
 						attr_name = attr.split('=', 1)[0]
 						if attr_name not in self.valid_tags[hash_key][1]:
 							raise ParserError("'%s' is not one of allowed attributes for '%s' element" % (attr_name, hash_key))
-		
+
 			starttag, endtag = create_tag(element, attributes)
 			htmlend = whitespace + endtag
-		
+
 		# check indent difference, close old tags if indent < 1
 		self.handle_indent(indent, htmlend)
-		
+
 		# update variables
 		self.last_opened_element = element
-		
+
 		# dump the current line to file
 		self.write(whitespace + starttag)
-	
+
 	def parse(self, filename, module=False):
 		# we assume here that the file is relatively small compared to our allowed buffer
 		if not module:
@@ -1097,23 +1097,33 @@ class Parser:
 					elif buffer:
 						line = buffer + ' ' + line.lstrip()
 						buffer = ''
-					
+
 					self.handle_line(line)
 				except (ParserError, ShellError) as error:
 					if DEBUG:
 						self.get_debug_state()
 						raise error
-					print "Error in %s: line %d: %s" % (filename, line_num, error.message)
-					print repr(line)
+					print(
+						"Error in %s: line %d: %s"
+						% (filename, line_num, error.message)
+					)
+					print(repr(line))
 					sys.exit()
 				except:
 					# on all other errors
 					if DEBUG:
 						self.get_debug_state()
-					print "Error in %s: line %d: %s" % (filename, line_num, "'%s' caused the following uncaught exception:" % line.strip())
-					print repr(line)
+					print(
+						"Error in %s: line %d: %s"
+						% (
+							filename,
+							line_num,
+							"'%s' caused the following uncaught exception:" % line.strip()
+						)
+					)
+					print(repr(line))
 					raise
-		
+
 		# terminate non-finished loops and pop off remaining elements, closing our HTML tags
 		if self.current_verbatim is not None:
 			self.handle_verbatim_call(EOF_MARKER)
