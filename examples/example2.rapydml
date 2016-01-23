@@ -1,0 +1,6 @@
+div(id="content"):
+    "I haven't yet put anything on this page"
+    p:
+        "Compatible with all major browsers:"
+        for $browser in [Firefox, Chrome, IE, Opera, Safari]:
+            img(src="$browser.jpg", alt="$browser")

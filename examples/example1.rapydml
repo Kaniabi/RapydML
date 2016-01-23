@@ -8,4 +8,4 @@ html:
     div(id="content"):
       "I haven't yet put anything on this page"
     div(id="copyright"):
-        "Copyright 2012 by Me"
+      "Copyright 2012 by Me"

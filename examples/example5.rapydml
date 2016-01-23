@@ -1,0 +1,12 @@
+def subsection($title):
+  div(class="sub-section"):
+    $title
+  div(class="section-content")
+
+div(id="main"):
+  subsection('Foo'):
+    'This is the foo section, it only has text'
+  subsection('Bar'):
+    img(src="image.png")
+    div:
+      'Bar section has images, and sub-children'

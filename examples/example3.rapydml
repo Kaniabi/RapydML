@@ -1,0 +1,6 @@
+div(id="content"):
+  "I haven't yet put anything on this page"
+  p:
+    "Compatible with all major browsers:"
+    for $item in [[firefox, Firefox], [chrome, Chrome], [ie, Internet Explorer], [opera, Opera], [safari, Safari]]:
+      img(src="$item[0].jpg", alt="$item[1]")

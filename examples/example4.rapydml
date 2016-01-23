@@ -1,0 +1,9 @@
+def navbutton($text):
+  div(class='nav-button'):
+    img(src="$text.png", alt="Navigate to $text")
+
+div(id='nav-menu'):
+  navbutton('Main')
+  navbutton('Products')
+  navbutton('Blog')
+  navbutton('About')
