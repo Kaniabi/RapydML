@@ -1,5 +1,6 @@
 import os
 
+
 def assert_file_contents(obtained_filename, expected_filename):
     obtained_lines = open(obtained_filename).readlines()
     expected_lines = open(expected_filename).readlines()
@@ -26,6 +27,7 @@ def _execute_test(filename):
     expected_filename = os.path.dirname(filename) + '/expected/' + os.path.splitext(os.path.basename(filename))[0] + '.expected.html'
     assert_file_contents(obtained_filename, expected_filename)
     os.remove(obtained_filename)
+
 
 def test_cases():
     cases_dir = os.path.dirname(__file__)
